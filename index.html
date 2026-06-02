@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MEL740 Shift Roster</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; font-size: 12px; background: #f0f0f0; }
+
+.top-bar {
+  background: #1a2e45; color: white; padding: 10px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.top-bar h1 { font-size: 16px; letter-spacing: 1px; }
+.top-bar .btns { display: flex; gap: 8px; }
+.btn { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+.btn-orange { background: #FF9900; color: white; }
+.btn-orange:hover { background: #e68900; }
+.btn-green  { background: #38a169; color: white; }
+.btn-green:hover { background: #2f855a; }
+.btn-blue   { background: #3182ce; color: white; }
+.btn-blue:hover { background: #2b6cb0; }
+.btn-red    { background: #e53e3e; color: white; }
+.btn-red:hover { background: #c53030; }
+
+.month-nav {
+  background: white; padding: 8px 20px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+.month-nav button {
+  background: #e2e8f0; border: none; border-radius: 4px;
+  padding: 4px 12px; cursor: pointer; font-size: 14px; font-weight: bold;
+}
+.month-nav button:hover { background: #cbd5e0; }
+.month-label { font-size: 15px; font-weight: bold; color: #1a2e45; min-width: 150px; text-align: center; }
+
+.tab-bar {
+  display: flex; background: white;
+  border-bottom: 2px solid #e2e8f0; padding: 0 12px;
+}
+.tab-btn {
+  padding: 8px 18px; border: none; background: none;
+  cursor: pointer; font-size: 12px; font-weight: bold; color: #718096;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+}
+.tab-btn.active { color: #1a2e45; border-bottom: 3px solid #FF9900; }
+.tab-btn:hover { color: #FF9900; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.roster-wrap { padding: 12px; overflow-x: auto; }
+
+table { border-collapse: collapse; white-space: nowrap; background: white; width: 100%; }
+th, td { border: 1px solid #ccc; text-align: center; padding: 3px 4px; min-width: 34px; height: 26px; }
+th { background: #1a2e45; color: white; font-size: 11px; }
+
+.col-level { min-width: 46px !important; }
+.col-srno  { min-width: 34px !important; }
+.col-name  { min-width: 110px !important; text-align: left !important; padding-left: 8px !important; }
+.col-total { min-width: 36px !important; background: #fff9e6 !important; font-weight: bold; font-size: 11px; }
+
+.section-hdr { background: #2d4a6b !important; color: white !important; font-weight: bold !important; font-size: 12px !important; }
+.info-cell   { background: #e8f0fe !important; font-weight: bold; color: #1a2e45; }
+.dow-sat     { background: #4a6fa5 !important; color: white !important; }
+.dow-sun     { background: #c0392b !important; color: white !important; }
+.date-sat    { background: #6b8fbd !important; color: white !important; }
+.date-sun    { background: #e57373 !important; color: white !important; }
+.cell-sat    { background: #eef2f8 !important; }
+.cell-sun    { background: #fdecea !important; }
+
+.shift-cell  { cursor: pointer; font-size: 11px; font-weight: bold; transition: opacity 0.1s; }
+.shift-cell:hover { opacity: 0.75; outline: 2px solid #333; }
+
+/* Shift colours */
+.s-D    { background: #FF9900 !important; color: white !important; }
+.s-DS   { background: #FF9900 !important; color: white !important; }
+.s-D12  { background: #cc7a00 !important; color: white !important; }
+.s-D4   { background: #ffcc80 !important; color: #333 !important; }
+.s-N    { background: #1a3a5c !important; color: white !important; }
+.s-NS   { background: #1a3a5c !important; color: white !important; }
+.s-N12  { background: #0d2137 !important; color: white !important; }
+.s-PH   { background: #8B4513 !important; color: white !important; }
+.s-TR   { background: #27ae60 !important; color: white !important; }
+.s-OBT  { background: #1e8449 !important; color: white !important; }
+.s-AL   { background: #e91e8c !important; color: white !important; }
+.s-TOIL { background: #e91e8c !important; color: white !important; }
+.s-ML   { background: #e91e8c !important; color: white !important; }
+.s-CCL  { background: #e91e8c !important; color: white !important; }
+.s-MPL  { background: #e91e8c !important; color: white !important; }
+.s-MC   { background: #b0bec5 !important; color: #333 !important; }
+.s-HL   { background: #ffccbc !important; color: #333 !important; }
+.s-X    { background: #f9ca24 !important; color: #333 !important; }
+
+#shift-picker {
+  position: fixed; z-index: 9999; background: white;
+  border: 1px solid #ccc; border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  padding: 10px; display: none; width: 240px;
+}
+#shift-picker .picker-title { font-size: 11px; color: #888; margin-bottom: 8px; }
+.picker-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; }
+.pick-btn {
+  padding: 7px 4px; border: none; border-radius: 4px;
+  cursor: pointer; font-size: 11px; font-weight: bold; text-align: center;
+}
+.pick-btn:hover { opacity: 0.8; }
+.pick-clear {
+  margin-top: 8px; width: 100%; padding: 6px;
+  background: #e2e8f0; border: none; border-radius: 4px;
+  cursor: pointer; font-size: 11px; font-weight: bold;
+}
+.pick-clear:hover { background: #cbd5e0; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 10px 14px; background: white;
+  border-top: 2px solid #e2e8f0;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #444; }
+.leg-box  { width: 24px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); }
+
+.sum-wrap { padding: 14px; }
+.sum-wrap h3 { color: #1a2e45; font-size: 14px; margin-bottom: 10px; }
+.sum-table { border-collapse: collapse; background: white; width: 100%; }
+.sum-table th { background: #1a2e45; color: white; padding: 7px 10px; font-size: 11px; text-align: center; }
+.sum-table td { padding: 6px 10px; border: 1px solid #e2e8f0; font-size: 12px; text-align: center; }
+.sum-table tr:hover td { background: #f7fafc; }
+.sum-name { text-align: left !important; font-weight: bold; }
+
+.notes-wrap { padding: 14px; }
+.notes-box {
+  background: #fffde7; border: 2px solid #f9ca24;
+  border-radius: 6px; padding: 12px;
+}
+.notes-box h4 { margin-bottom: 8px; color: #b7950b; }
+.notes-box textarea {
+  width: 100%; min-height: 100px; border: 1px solid #ddd;
+  border-radius: 4px; padding: 8px; font-size: 12px;
+  resize: vertical; font-family: Arial, sans-serif;
+}
+.save-note-btn {
+  margin-top: 6px; padding: 6px 14px; background: #38a169;
+  color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>📅 MEL740 SHIFT ROSTER</h1>
+  <div class="btns">
+    <button class="btn btn-orange" onclick="exportCSV()">⬇️ Export CSV</button>
+    <button class="btn btn-green"  onclick="saveRoster()">💾 Save</button>
+    <button class="btn btn-blue"   onclick="printRoster()">🖨️ Print</button>
+    <button class="btn btn-red"    onclick="clearMonth()">🗑️ Clear Month</button>
+  </div>
+</div>
+
+<div class="month-nav">
+  <button onclick="changeMonth(-1)">◀</button>
+  <div class="month-label" id="month-label"></div>
+  <button onclick="changeMonth(1)">▶</button>
+  <span style="font-size:11px;color:#888;margin-left:12px;">Click any cell to assign a shift</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('roster',this)">📅 Roster</button>
+  <button class="tab-btn"        onclick="switchTab('summary',this)">📊 Summary</button>
+  <button class="tab-btn"        onclick="switchTab('notes',this)">📝 Notes</button>
+</div>
+
+<!-- ROSTER TAB -->
+<div id="tab-roster" class="tab-content active">
+  <div class="roster-wrap">
+    <table id="roster-table"></table>
+  </div>
+  <div class="legend">
+    <strong style="font-size:11px;color:#444;margin-right:4px;">LEGEND:</strong>
+    <div class="leg-item"><span class="leg-box" style="background:#FF9900"></span>D / D(S) — Day / Shadow Shift</div>
+    <div class="leg-item"><span class="leg-box" style="background:#cc7a00"></span>D12 — 12 Hour Day Cover</div>
+    <div class="leg-item"><span class="leg-box" style="background:#ffcc80;border:1px solid #ccc"></span>D4 — 4 Hour Day Cover</div>
+    <div class="leg-item"><span class="leg-box" style="background:#1a3a5c"></span>N / N(S) — Night / Shadow Shift</div>
+    <div class="leg-item"><span class="leg-box" style="background:#0d2137"></span>N12 — 12 Hour Night Cover</div>
+    <div class="leg-item"><span class="leg-box" style="background:#8B4513"></span>PH — Public Holiday</div>
+    <div class="leg-item"><span class="leg-box" style="background:#27ae60"></span>TR — Training</div>
+    <div class="leg-item"><span class="leg-box" style="background:#1e8449"></span>OBT — Overseas Business Trip</div>
+    <div class="leg-item"><span class="leg-box" style="background:#e91e8c"></span>AL — Annual Leave</div>
+    <div class="leg-item"><span class="leg-box" style="background:#e91e8c"></span>TOIL — Time Off In Lieu</div>
+    <div class="leg-item"><span class="leg-box" style="background:#e91e8c"></span>ML — Marriage Leave</div>
+    <div class="leg-item"><span class="leg-box" style="background:#e91e8c"></span>CCL — Childcare Leave</div>
+    <div class="leg-item"><span class="leg-box" style="background:#e91e8c"></span>M-PL — Maternity / Paternity Leave</div>
+    <div class="leg-item"><span class="leg-box" style="background:#b0bec5"></span>MC — Medical Condition</div>
+    <div class="leg-item"><span class="leg-box" style="background:#ffccbc;border:1px solid #ccc"></span>HL — Hospital Leave</div>
+    <div class="leg-item"><span class="leg-box" style="background:#f9ca24;border:1px solid #ccc"></span>X — Unavailable</div>
+  </div>
+</div>
+
+<!-- SUMMARY TAB -->
+<div id="tab-summary" class="tab-content">
+  <div class="sum-wrap">
+    <h3 id="sum-title">📊 Leave & Shift Summary</h3>
+    <table class="sum-table" id="sum-table"></table>
+  </div>
+</div>
+
+<!-- NOTES TAB -->
+<div id="tab-notes" class="tab-content">
+  <div class="notes-wrap">
+    <div class="notes-box">
+      <h4>📝 Roster Notes</h4>
+      <textarea id="notes-area" placeholder="Add notes for this month here..."></textarea>
+      <button class="save-note-btn" onclick="saveNotes()">💾 Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHIFT PICKER -->
+<div id="shift-picker">
+  <div class="picker-title">Select shift for <strong id="picker-label"></strong></div>
+  <div class="picker-grid" id="picker-grid"></div>
+  <button class="pick-clear" onclick="clearCell()">✕ Clear</button>
+</div>
+
+<script>
+// ============================================================
+// CONFIG — STAFF
+// ============================================================
+const STAFF = [
+  { id: 1, level: 'L3', name: 'Ayesha' },
+  { id: 2, level: 'L3', name: 'Min'    },
+  { id: 3, level: 'L4', name: 'Sam'    },
+  { id: 4, level: 'L3', name: 'Elise'  },
+  { id: 5, level: 'L3', name: 'Ron'    },
+  { id: 6, level: 'L3', name: 'Marsant'},
+];
+
+// ============================================================
+// SHIFT CODES
+// ============================================================
+const SHIFTS = [
+  { code: 'D',    label: 'D',     cls: 's-D',    desc: 'Day' },
+  { code: 'D(S)', label: 'D(S)',  cls: 's-DS',   desc: 'Day Shadow' },
+  { code: 'D12',  label: 'D12',   cls: 's-D12',  desc: '12hr Day' },
+  { code: 'D4',   label: 'D4',    cls: 's-D4',   desc: '4hr Day' },
+  { code: 'N',    label: 'N',     cls: 's-N',    desc: 'Night' },
+  { code: 'N(S)', label: 'N(S)',  cls: 's-NS',   desc: 'Night Shadow' },
+  { code: 'N12',  label: 'N12',   cls: 's-N12',  desc: '12hr Night' },
+  { code: 'PH',   label: 'PH',    cls: 's-PH',   desc: 'Public Holiday' },
+  { code: 'TR',   label: 'TR',    cls: 's-TR',   desc: 'Training' },
+  { code: 'OBT',  label: 'OBT',   cls: 's-OBT',  desc: 'Overseas Trip' },
+  { code: 'AL',   label: 'AL',    cls: 's-AL',   desc: 'Annual Leave' },
+  { code: 'TOIL', label: 'TOIL',  cls: 's-TOIL', desc: 'TOIL' },
+  { code: 'ML',   label: 'ML',    cls: 's-ML',   desc: 'Marriage Leave' },
+  { code: 'CCL',  label: 'CCL',   cls: 's-CCL',  desc: 'Childcare Leave' },
+  { code: 'M-PL', label: 'M-PL',  cls: 's-MPL',  desc: 'Maternity/Paternity' },
+  { code: 'MC',   label: 'MC',    cls: 's-MC',   desc: 'Medical' },
+  { code: 'HL',   label: 'HL',    cls: 's-HL',   desc: 'Hospital Leave' },
+  { code: 'X',    label: 'X',     cls: 's-X',    desc: 'Unavailable' },
+];
+
+const SHIFT_MAP = {};
+SHIFTS.forEach(s => { SHIFT_MAP[s.code] = s; });
+
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+
+// ============================================================
+// STATE
+// ============================================================
+let currentYear  = new Date().getFullYear();
+let currentMonth = new Date().getMonth(); // 0-based
+let rosterData   = {};   // key: "year-month-staffId-day" -> shiftCode
+let pickerTarget = null; // { staffId, day }
+
+// ============================================================
+// STORAGE
+// ============================================================
+function storageKey(y, m) { return `mel740_roster_${y}_${m}`; }
+
+function loadRoster() {
+  const key = storageKey(currentYear, currentMonth);
+  try { rosterData = JSON.parse(localStorage.getItem(key) || '{}'); }
+  catch(e) { rosterData = {}; }
+}
+
+function saveRoster() {
+  const key = storageKey(currentYear, currentMonth);
+  localStorage.setItem(key, JSON.stringify(rosterData));
+  flashSaved();
+}
+
+function flashSaved() {
+  const btn = document.querySelector('.btn-green');
+  const orig = btn.textContent;
+  btn.textContent = '✅ Saved!';
+  setTimeout(() => btn.textContent = orig, 1500);
+}
+
+function cellKey(staffId, day) {
+  return `${currentYear}-${currentMonth}-${staffId}-${day}`;
+}
+
+function getCell(staffId, day)         { return rosterData[cellKey(staffId,day)] || ''; }
+function setCell(staffId, day, code)   { rosterData[cellKey(staffId,day)] = code; }
+function clearCellData(staffId, day)   { delete rosterData[cellKey(staffId,day)]; }
+
+// ============================================================
+// NOTES
+// ============================================================
+function notesKey() { return `mel740_notes_${currentYear}_${currentMonth}`; }
+function loadNotes() {
+  document.getElementById('notes-area').value = localStorage.getItem(notesKey()) || '';
+}
+function saveNotes() {
+  localStorage.setItem(notesKey(), document.getElementById('notes-area').value);
+  const btn = document.querySelector('.save-note-btn');
+  btn.textContent = '✅ Saved!';
+  setTimeout(() => btn.textContent = '💾 Save Notes', 1500);
+}
+
+// ============================================================
+// RENDER ROSTER TABLE
+// ============================================================
+function getDaysInMonth(y, m) { return new Date(y, m+1, 0).getDate(); }
+function getDayOfWeek(y, m, d){ return new Date(y, m, d).getDay(); } // 0=Sun
+
+function renderRoster() {
+  document.getElementById('month-label').textContent =
+    MONTHS[currentMonth] + ' ' + currentYear;
+
+  const totalDays = getDaysInMonth(currentYear, currentMonth);
+  const table = document.getElementById('roster-table');
+  let html = '';
+
+  // ── Header row 1: fixed cols + day-of-week
+  html += '<thead>';
+  html += '<tr>';
+  html += '<th class="col-level">Level</th>';
+  html += '<th class="col-srno">No.</th>';
+  html += '<th class="col-name">Name</th>';
+  for (let d = 1; d <= totalDays; d++) {
+    const dow = getDayOfWeek(currentYear, currentMonth, d);
+    const cls = dow === 0 ? 'dow-sun' : dow === 6 ? 'dow-sat' : '';
+    html += `<th class="${cls}">${DAYS[dow]}</th>`;
+  }
+  html += '<th class="col-total">D</th>';
+  html += '<th class="col-total">N</th>';
+  html += '<th class="col-total">Leave</th>';
+  html += '</tr>';
+
+  // ── Header row 2: date numbers
+  html += '<tr>';
+  html += '<th class="col-level" style="background:#2d4a6b;"></th>';
+  html += '<th class="col-srno"  style="background:#2d4a6b;"></th>';
+  html += '<th class="col-name"  style="background:#2d4a6b;font-size:11px;color:#aaa;">MEL740</th>';
+  for (let d = 1; d <= totalDays; d++) {
+    const dow = getDayOfWeek(currentYear, currentMonth, d);
+    const cls = dow === 0 ? 'date-sun' : dow === 6 ? 'date-sat' : '';
+    html += `<th class="${cls}" style="background:${cls?'':'#34607e'}">${d}</th>`;
+  }
+  html += '<th style="background:#34607e;font-size:10px;">Day</th>';
+  html += '<th style="background:#34607e;font-size:10px;">Night</th>';
+  html += '<th style="background:#34607e;font-size:10px;">Leave</th>';
+  html += '</tr>';
+  html += '</thead><tbody>';
+
+  // ── Staff rows
+  STAFF.forEach(person => {
+    let dayCount = 0, nightCount = 0, leaveCount = 0;
+
+    html += '<tr>';
+    html += `<td class="info-cell col-level">${person.level}</td>`;
+    html += `<td class="info-cell col-srno">${person.id}</td>`;
+    html += `<td class="info-cell col-name">${person.name}</td>`;
+
+    for (let d = 1; d <= totalDays; d++) {
+      const dow  = getDayOfWeek(currentYear, currentMonth, d);
+      const code = getCell(person.id, d);
+      const shift = SHIFT_MAP[code];
+      const wkCls = dow === 0 ? 'cell-sun' : dow === 6 ? 'cell-sat' : '';
+      const shCls = shift ? shift.cls : '';
+
+      if (code) {
+        if (['D','D(S)','D12','D4'].includes(code)) dayCount++;
+        else if (['N','N(S)','N12'].includes(code)) nightCount++;
+        else if (['AL','TOIL','ML','CCL','M-PL','MC','HL'].includes(code)) leaveCount++;
+      }
+
+      html += `<td class="shift-cell ${wkCls} ${shCls}"
+        onclick="openPicker(event, ${person.id}, ${d}, '${person.name}', ${d})"
+        data-staff="${person.id}" data-day="${d}">${code || ''}</td>`;
+    }
+
+    html += `<td class="col-total" style="color:#cc7a00">${dayCount||''}</td>`;
+    html += `<td class="col-total" style="color:#1a3a5c">${nightCount||''}</td>`;
+    html += `<td class="col-total" style="color:#e91e8c">${leaveCount||''}</td>`;
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+// ============================================================
+// RENDER SUMMARY
+// ============================================================
+function renderSummary() {
+  document.getElementById('sum-title').textContent =
+    `📊 Summary — ${MONTHS[currentMonth]} ${currentYear}`;
+
+  const totalDays = getDaysInMonth(currentYear, currentMonth);
+  let html = '<thead><tr>';
+  html += '<th style="text-align:left;">Name</th><th>Level</th>';
+  html += '<th>D Shifts</th><th>N Shifts</th><th>AL</th><th>TOIL</th>';
+  html += '<th>ML/CCL/M-PL</th><th>MC/HL</th><th>TR/OBT</th><th>X</th><th>PH</th>';
+  html += '</tr></thead><tbody>';
+
+  STAFF.forEach(p => {
+    let d=0,n=0,al=0,toil=0,leave=0,mc=0,tr=0,x=0,ph=0;
+    for (let day = 1; day <= totalDays; day++) {
+      const code = getCell(p.id, day);
+      if (['D','D(S)','D12','D4'].includes(code)) d++;
+      else if (['N','N(S)','N12'].includes(code)) n++;
+      else if (code === 'AL')  al++;
+      else if (code === 'TOIL') toil++;
+      else if (['ML','CCL','M-PL'].includes(code)) leave++;
+      else if (['MC','HL'].includes(code)) mc++;
+      else if (['TR','OBT'].includes(code)) tr++;
+      else if (code === 'X')  x++;
+      else if (code === 'PH') ph++;
+    }
+    html += `<tr>
+      <td class="sum-name">${p.name}</td>
+      <td>${p.level}</td>
+      <td style="color:#cc7a00;font-weight:bold">${d||'-'}</td>
+      <td style="color:#1a3a5c;font-weight:bold">${n||'-'}</td>
+      <td style="color:#e91e8c">${al||'-'}</td>
+      <td style="color:#e91e8c">${toil||'-'}</td>
+      <td style="color:#e91e8c">${leave||'-'}</td>
+      <td style="color:#718096">${mc||'-'}</td>
+      <td style="color:#27ae60">${tr||'-'}</td>
+      <td style="color:#b7950b">${x||'-'}</td>
+      <td style="color:#8B4513">${ph||'-'}</td>
+    </tr>`;
+  });
+
+  html += '</tbody>';
+  document.getElementById('sum-table').innerHTML = html;
+}
+
+// ============================================================
+// SHIFT PICKER
+// ============================================================
+function openPicker(e, staffId, day, name, dayNum) {
+  e.stopPropagation();
+  pickerTarget = { staffId, day };
+
+  document.getElementById('picker-label').textContent =
+    `${name} — Day ${dayNum}`;
+
+  let grid = '';
+  SHIFTS.forEach(s => {
+    grid += `<button class="pick-btn ${s.cls}"
+      onclick="assignShift('${s.code}')"
+      title="${s.desc}">${s.label}</button>`;
+  });
+  document.getElementById('picker-grid').innerHTML = grid;
+
+  const picker = document.getElementById('shift-picker');
+  picker.style.display = 'block';
+
+  // Position near click but keep on screen
+  let x = e.clientX + 10, y = e.clientY + 10;
+  if (x + 260 > window.innerWidth)  x = window.innerWidth - 265;
+  if (y + 320 > window.innerHeight) y = window.innerHeight - 325;
+  picker.style.left = x + 'px';
+  picker.style.top  = y + 'px';
+}
+
+function assignShift(code) {
+  if (!pickerTarget) return;
+  setCell(pickerTarget.staffId, pickerTarget.day, code);
+  saveRoster();
+  closePicker();
+  renderRoster();
+  if (document.getElementById('tab-summary').classList.contains('active')) renderSummary();
+}
+
+function clearCell() {
+  if (!pickerTarget) return;
+  clearCellData(pickerTarget.staffId, pickerTarget.day);
+  saveRoster();
+  closePicker();
+  renderRoster();
+}
+
+function closePicker() {
+  document.getElementById('shift-picker').style.display = 'none';
+  pickerTarget = null;
+}
+
+document.addEventListener('click', function(e) {
+  const picker = document.getElementById('shift-picker');
+  if (picker.style.display === 'block' && !picker.contains(e.target)) {
+    closePicker();
+  }
+});
+
+// ============================================================
+// MONTH NAV
+// ============================================================
+function changeMonth(dir) {
+  currentMonth += dir;
+  if (currentMonth > 11) { currentMonth = 0;  currentYear++; }
+  if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+  loadRoster();
+  loadNotes();
+  renderRoster();
+  if (document.getElementById('tab-summary').classList.contains('active')) renderSummary();
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btn.classList.add('active');
+  if (tabId === 'summary') renderSummary();
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+function exportCSV() {
+  const totalDays = getDaysInMonth(currentYear, currentMonth);
+  const days = [];
+  for (let d = 1; d <= totalDays; d++) days.push(d);
+
+  let csv = `MEL740 Shift Roster — ${MONTHS[currentMonth]} ${currentYear}\n\n`;
+  csv += 'Level,Name,' + days.join(',') + ',D Shifts,N Shifts,Leave\n';
+
+  STAFF.forEach(p => {
+    let d=0, n=0, l=0;
+    const row = days.map(day => {
+      const code = getCell(p.id, day);
+      if (['D','D(S)','D12','D4'].includes(code)) d++;
+      else if (['N','N(S)','N12'].includes(code)) n++;
+      else if (['AL','TOIL','ML','CCL','M-PL','MC','HL'].includes(code)) l++;
+      return code || '';
+    });
+    csv += `${p.level},${p.name},${row.join(',')},${d},${n},${l}\n`;
+  });
+
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `MEL740_Roster_${MONTHS[currentMonth]}_${currentYear}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// CLEAR MONTH
+// ============================================================
+function clearMonth() {
+  if (!confirm(`Clear ALL shifts for ${MONTHS[currentMonth]} ${currentYear}? This cannot be undone.`)) return;
+  rosterData = {};
+  saveRoster();
+  renderRoster();
+}
+
+// ============================================================
+// PRINT
+// ============================================================
+function printRoster() { window.print(); }
+
+// ============================================================
+// INIT
+// ============================================================
+loadRoster();
+loadNotes();
+renderRoster();
+</script>
+</body>
+</html>
